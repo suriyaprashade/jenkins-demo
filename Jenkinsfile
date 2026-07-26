@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "suriyadevops/jenkins-demo"
+        APP_SERVER = "18.215.118.239"
     }
 
     stages {
@@ -19,7 +20,7 @@ pipeline {
             }
         }
 
-        stage('Docker Login and Push') {
+        stage('Docker Push') {
             steps {
                 withCredentials([
                     usernamePassword(
@@ -34,6 +35,24 @@ pipeline {
                         --password-stdin
 
                         docker push $DOCKER_IMAGE:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to App Server') {
+            steps {
+                sshagent(['app-ec2-ssh']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no ubuntu@$APP_SERVER "
+                            docker pull $DOCKER_IMAGE:latest &&
+                            docker stop jenkins-demo-app || true &&
+                            docker rm jenkins-demo-app || true &&
+                            docker run -d \
+                            --name jenkins-demo-app \
+                            -p 80:80 \
+                            $DOCKER_IMAGE:latest
+                        "
                     '''
                 }
             }
