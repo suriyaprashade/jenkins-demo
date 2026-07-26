@@ -1,29 +1,41 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = "YOUR_DOCKERHUB_USERNAME/jenkins-demo"
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Getting source code'
+                echo 'Getting source code from GitHub'
             }
         }
 
-        stage('Build') {
+        stage('Docker Build') {
             steps {
-                echo 'Building application'
+                sh 'docker build -t $DOCKER_IMAGE:latest .'
             }
         }
 
-        stage('Test') {
+        stage('Docker Login and Push') {
             steps {
-                echo 'Testing application'
-            }
-        }
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                        -u "$DOCKER_USERNAME" \
+                        --password-stdin
 
-        stage('Deploy') {
-            steps {
-                echo 'Deploying application'
+                        docker push $DOCKER_IMAGE:latest
+                    '''
+                }
             }
         }
     }
